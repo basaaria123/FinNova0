@@ -42,7 +42,7 @@ function LoginPage() {
     return null;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setSuccess("");
@@ -50,15 +50,15 @@ function LoginPage() {
     if (err) { setError(err); return; }
 
     if (mode === "login") {
-      const res = login(email, password);
+      const res = await login(email, password);
       if (res) { setError(res); return; }
       navigate({ to: "/" });
     } else if (mode === "signup") {
-      const res = signup(name.trim(), email.trim(), password);
+      const res = await signup(name.trim(), email.trim(), password);
       if (res) { setError(res); return; }
       navigate({ to: "/" });
     } else {
-      const res = resetPassword(email.trim(), newPassword);
+      const res = await resetPassword(email.trim(), newPassword);
       if (res) { setError(res); return; }
       setSuccess("Password reset successfully! You can now login.");
       setTimeout(() => {

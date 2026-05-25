@@ -2,7 +2,6 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useExpenses, useBudget } from "@/hooks/use-finova-store";
 import { formatINR } from "@/lib/format";
-import { useServerFn } from "@tanstack/react-start";
 import { getAiTip } from "@/lib/ai-tips.functions";
 import { PreviousTransactions } from "@/components/PreviousTransactions";
 import {
@@ -118,7 +117,6 @@ function InsightsPage() {
           : "On par with last month";
 
   // AI tip
-  const callTip = useServerFn(getAiTip);
   const [aiTip, setAiTip] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
@@ -144,15 +142,13 @@ function InsightsPage() {
     let cancelled = false;
     setAiLoading(true);
     setAiError(null);
-    callTip({
-      data: {
-        topCategory: stats.topCategory?.name ?? null,
-        topShare: stats.topShare,
-        totalMonth: stats.totalMonth,
-        prevMonthTotal: stats.totalPrev,
-        predictedMonthEnd: stats.predicted,
-        budget: budget.monthly,
-      },
+    getAiTip({
+      topCategory: stats.topCategory?.name ?? null,
+      topShare: stats.topShare,
+      totalMonth: stats.totalMonth,
+      prevMonthTotal: stats.totalPrev,
+      predictedMonthEnd: stats.predicted,
+      budget: budget.monthly,
     })
       .then((res) => {
         if (cancelled) return;
