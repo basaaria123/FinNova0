@@ -15,6 +15,96 @@ interface AiTipInput {
   budget: number;
 }
 
+function generateTip(input: AiTipInput): string {
+  const {
+    topCategory,
+    topShare,
+    totalMonth,
+    prevMonthTotal,
+    predictedMonthEnd,
+    budget,
+  } = input;
+
+  const percentOverBudget = budget > 0 ? ((predictedMonthEnd - budget) / budget) * 100 : 0;
+  const monthOverMonthChange = prevMonthTotal > 0
+    ? ((totalMonth - prevMonthTotal) / prevMonthTotal) * 100
+    : 0;
+  const daysLeft = getDaysLeftInMonth();
+  const dailyAvg = getSpendingDaysPassed() > 0 ? totalMonth / getSpendingDaysPassed() : 0;
+  const safeToSpend = budget > 0
+    ? Math.max(0, (budget - totalMonth) / daysLeft)
+    : dailyAvg;
+
+  // Budget critical (over 20%)
+  if (budget > 0 && percentOverBudget > 20) {
+    return `Budget alert: You're projected to exceed by ${Math.round(percentOverBudget)}%. Pause non-essential ${topCategory || 'spending'} now.`;
+  }
+
+  // Budget warning (over 10%)
+  if (budget > 0 && percentOverBudget > 10) {
+    return `Slow down on ${topCategory || 'spending'} to stay under your ${formatCurrency(budget)} budget this month.`;
+  }
+
+  // High category concentration
+  if (topShare > 0.5 && topCategory) {
+    return `${topCategory} is ${Math.round(topShare * 100)}% of your spending. Consider diversifying your expenses.`;
+  }
+
+  // Spending increased significantly vs last month
+  if (prevMonthTotal > 0 && monthOverMonthChange > 30) {
+    return `Spending is up ${Math.round(monthOverMonthChange)}% from last month. Review recent ${topCategory || 'purchases'}.`;
+  }
+
+  // Good progress - under budget
+  if (budget > 0 && predictedMonthEnd < budget * 0.9) {
+    const savings = budget - predictedMonthEnd;
+    return `Great job! You're on track to save ${formatCurrency(savings)} this month. Keep it up!`;
+  }
+
+  // On track with budget
+  if (budget > 0 && predictedMonthEnd <= budget) {
+    return `On track! You can safely spend ${formatCurrency(safeToSpend)}/day for the rest of the month.`;
+  }
+
+  // Spending decreased vs last month
+  if (prevMonthTotal > 0 && monthOverMonthChange < -20) {
+    return `Excellent! Spending is down ${Math.abs(Math.round(monthOverMonthChange))}% from last month. Stay disciplined!`;
+  }
+
+  // No budget set
+  if (budget === 0) {
+    return `Set a monthly budget to get personalized spending insights and stay on track.`;
+  }
+
+  // Low spending days left
+  if (daysLeft <= 5 && budget > 0 && predictedMonthEnd <= budget) {
+    return `Final stretch! ${daysLeft} days left. You have ${formatCurrency(budget - totalMonth)} remaining in budget.`;
+  }
+
+  // Default tip
+  return `Track your ${topCategory || 'daily expenses'} to identify patterns and optimize your budget.`;
+}
+
+function formatCurrency(amount: number): string {
+  if (amount >= 100000) {
+    return `₹${(amount / 100000).toFixed(1)}L`;
+  } else if (amount >= 1000) {
+    return `₹${(amount / 1000).toFixed(1)}K`;
+  }
+  return `₹${Math.round(amount)}`;
+}
+
+function getDaysLeftInMonth(): number {
+  const now = new Date();
+  const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  return lastDay.getDate() - now.getDate();
+}
+
+function getSpendingDaysPassed(): number {
+  const now = new Date();
+  return now.getDate();
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 200, headers: corsHeaders });
@@ -29,75 +119,14 @@ Deno.serve(async (req: Request) => {
 
   try {
     const input: AiTipInput = await req.json();
+    const tip = generateTip(input);
 
-    const apiKey = Deno.env.get("LOVABLE_API_KEY");
-    if (!apiKey) {
-      return new Response(JSON.stringify({ tip: null, error: "missing-key" }), {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const sys =
-      "You are a concise personal finance coach for an Indian user. Respond with exactly one short, actionable tip under 22 words. No preface, no emojis, no markdown.";
-
-    const ctx = `Top category: ${input.topCategory ?? "n/a"} (${Math.round(
-      input.topShare * 100
-    )}% of month). This month so far: ₹${Math.round(
-      input.totalMonth
-    )}. Last month: ₹${Math.round(
-      input.prevMonthTotal
-    )}. Predicted end-of-month: ₹${Math.round(
-      input.predictedMonthEnd
-    )}. Monthly budget: ₹${Math.round(input.budget)}.`;
-
-    const resp = await fetch(
-      "https://ai.gateway.lovable.dev/v1/chat/completions",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "google/gemini-3-flash-preview",
-          messages: [
-            { role: "system", content: sys },
-            { role: "user", content: ctx },
-          ],
-        }),
-      }
-    );
-
-    if (!resp.ok) {
-      if (resp.status === 429) {
-        return new Response(JSON.stringify({ tip: null, error: "rate-limit" }), {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      if (resp.status === 402) {
-        return new Response(JSON.stringify({ tip: null, error: "credits" }), {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      return new Response(JSON.stringify({ tip: null, error: `http-${resp.status}` }), {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const json = await resp.json();
-    const tip: string | undefined =
-      json?.choices?.[0]?.message?.content?.trim();
-
-    return new Response(JSON.stringify({ tip: tip ?? null, error: null }), {
+    return new Response(JSON.stringify({ tip, error: null }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
-    return new Response(JSON.stringify({ tip: null, error: "network" }), {
+    return new Response(JSON.stringify({ tip: null, error: "parse-error" }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
