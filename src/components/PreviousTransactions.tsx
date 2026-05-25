@@ -54,7 +54,7 @@ export function PreviousTransactions() {
         className="btn-animated w-full rounded-xl gradient-primary px-4 py-3 text-sm font-semibold text-primary-foreground shadow-glow flex items-center justify-between"
       >
         <span className="flex items-center gap-2">
-          <span>📜</span> Previous Transactions
+          <span>📜</span> Previous Expenses
         </span>
         <span className="text-xs opacity-80">
           {expenses.length} total {open ? "▲" : "▼"}
@@ -196,7 +196,7 @@ export function PreviousTransactions() {
             )}
           </div>
 
-          {/* Transaction log */}
+          {/* Expense log */}
           <div>
             <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Log ({filtered.length})

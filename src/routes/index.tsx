@@ -107,9 +107,9 @@ function Dashboard() {
         </div>
       )}
 
-      {/* Recent Transactions */}
+      {/* Recent Expenses */}
       <div className="mb-4">
-        <h2 className="text-base font-semibold text-foreground mb-3">Recent Transactions</h2>
+        <h2 className="text-base font-semibold text-foreground mb-3">Recent Expenses</h2>
         {recentExpenses.length === 0 ? (
           <div className="finova-card p-8 text-center">
             <p className="text-3xl mb-2">💸</p>
